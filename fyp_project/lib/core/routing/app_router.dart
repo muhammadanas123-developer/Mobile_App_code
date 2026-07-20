@@ -36,6 +36,10 @@ final routerProvider = Provider<GoRouter>((ref) {
 
     initialLocation: Routes.splash,
 
+    // Temporarily using ValueNotifier(0) instead of GoRouterRefreshStream
+    // since StateNotifier doesn't have a stream property
+    refreshListenable: ValueNotifier(0),
+
     redirect: (context, state) {
       final auth = ref.read(authStateProvider);
 
