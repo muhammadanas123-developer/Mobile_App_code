@@ -14,7 +14,7 @@ class AuthState {
   final String role; // 'customer' or 'owner'
 
   const AuthState({
-    this.isLoading = true,
+    this.isLoading = false, // ✅ Changed from true to false
     this.isAuthenticated = false,
     this.user,
     this.role = 'customer',
@@ -39,7 +39,7 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final PreferencesService _prefs;
   final SecureStorageService _secureStorage;
-  final AuthService _authService = AuthService(); // ✅ Added here
+  final AuthService _authService = AuthService(); // ✅ AuthService added
 
   AuthNotifier(this._prefs, this._secureStorage) : super(const AuthState()) {
     _initialize();
@@ -76,7 +76,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   /// Real login with email and password
-  Future<void> login({ // ✅ Login method added here
+  Future<void> login({
     required String email,
     required String password,
   }) async {
@@ -112,6 +112,30 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: user,
         role: user.role,
       );
+    } catch (e) {
+      state = state.copyWith(isLoading: false);
+      rethrow;
+    }
+  }
+
+  /// Signup with email, password, name and role
+  Future<void> signup({
+    required String name,
+    required String email,
+    required String password,
+    required String role,
+  }) async {
+    try {
+      state = state.copyWith(isLoading: true);
+
+      await _authService.signup(
+        name: name,
+        email: email,
+        password: password,
+        role: role,
+      );
+
+      state = state.copyWith(isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false);
       rethrow;
