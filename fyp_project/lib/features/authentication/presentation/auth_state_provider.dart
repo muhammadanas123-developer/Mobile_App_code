@@ -73,7 +73,50 @@ class AuthNotifier extends StateNotifier<AuthState> {
     }
   }
 
-  /// Logs in as Customer
+  /// Real login with email and password
+  Future<void> login({
+    required String email,
+    required String password,
+  }) async {
+    try {
+      state = state.copyWith(isLoading: true);
+
+      final response = await _authService.login(
+        email: email,
+        password: password,
+      );
+
+      final token = response['access_token'];
+
+      final userJson = response['user'];
+
+      final user = UserModel(
+        id: userJson['id'],
+        name: userJson['user_metadata']?['name'] ?? '',
+        email: userJson['email'],
+        role: userJson['user_metadata']?['role'] ?? 'customer',
+      );
+
+      await _secureStorage.saveTokens(
+        accessToken: token,
+        refreshToken: '',
+      );
+
+      await _prefs.setUserRole(user.role);
+
+      state = AuthState(
+        isLoading: false,
+        isAuthenticated: true,
+        user: user,
+        role: user.role,
+      );
+    } catch (e) {
+      state = state.copyWith(isLoading: false);
+      rethrow;
+    }
+  }
+
+  /// Logs in as Customer (Mock)
   Future<void> loginAsCustomer() async {
     state = state.copyWith(isLoading: true);
     await _secureStorage.saveTokens(accessToken: 'mock_customer_jwt', refreshToken: 'mock_refresh_token');
@@ -95,7 +138,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
   }
 
-  /// Logs in as Salon Owner
+  /// Logs in as Salon Owner (Mock)
   Future<void> loginAsOwner() async {
     state = state.copyWith(isLoading: true);
     await _secureStorage.saveTokens(accessToken: 'mock_owner_jwt', refreshToken: 'mock_refresh_token');
