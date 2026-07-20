@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../authentication/domain/user_model.dart';
 import '../../../core/storage/preferences_service.dart';
@@ -79,8 +81,6 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String password,
   }) async {
     try {
-      print("LOGIN START");
-
       state = state.copyWith(isLoading: true);
 
       final response = await _authService.login(
@@ -88,27 +88,33 @@ class AuthNotifier extends StateNotifier<AuthState> {
         password: password,
       );
 
-      print(response);
-
       final token = response['access_token'];
+
+      final userJson = response['user'];
+
+      final user = UserModel(
+        id: userJson['id'],
+        name: userJson['user_metadata']?['name'] ?? '',
+        email: userJson['email'],
+        role: userJson['user_metadata']?['role'] ?? 'customer',
+      );
 
       await _secureStorage.saveTokens(
         accessToken: token,
         refreshToken: '',
       );
 
-      print("TOKEN SAVED");
+      await _prefs.setUserRole(user.role);
 
       state = AuthState(
         isLoading: false,
         isAuthenticated: true,
-        role: 'customer',
+        user: user,
+        role: user.role,
       );
-
-      print("STATE UPDATED");
     } catch (e) {
-      print(e);
       state = state.copyWith(isLoading: false);
+      rethrow;
     }
   }
 
@@ -195,3 +201,22 @@ final authStateProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final secureStorage = ref.watch(secureStorageServiceProvider);
   return AuthNotifier(prefs, secureStorage);
 });
+
+/// Helper class to refresh GoRouter when authentication state changes
+class GoRouterRefreshStream extends ChangeNotifier {
+  GoRouterRefreshStream(Stream<dynamic> stream) {
+    notifyListeners();
+
+    _subscription = stream.asBroadcastStream().listen(
+      (_) => notifyListeners(),
+    );
+  }
+
+  late final StreamSubscription _subscription;
+
+  @override
+  void dispose() {
+    _subscription.cancel();
+    super.dispose();
+  }
+}
