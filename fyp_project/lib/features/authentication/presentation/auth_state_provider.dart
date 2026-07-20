@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../authentication/domain/user_model.dart';
 import '../../../core/storage/preferences_service.dart';
 import '../../../core/storage/secure_storage_service.dart';
+import '../../data/auth_service.dart';
 
 /// Class representing the state of Authentication.
 class AuthState {
@@ -36,6 +37,7 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final PreferencesService _prefs;
   final SecureStorageService _secureStorage;
+  final AuthService _authService = AuthService();
 
   AuthNotifier(this._prefs, this._secureStorage) : super(const AuthState()) {
     _initialize();
