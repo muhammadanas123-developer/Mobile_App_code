@@ -39,7 +39,7 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final PreferencesService _prefs;
   final SecureStorageService _secureStorage;
-  final AuthService _authService = AuthService();
+  final AuthService _authService = AuthService(); // ✅ Added here
 
   AuthNotifier(this._prefs, this._secureStorage) : super(const AuthState()) {
     _initialize();
@@ -76,7 +76,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
   }
 
   /// Real login with email and password
-  Future<void> login({
+  Future<void> login({ // ✅ Login method added here
     required String email,
     required String password,
   }) async {
@@ -208,7 +208,7 @@ class GoRouterRefreshStream extends ChangeNotifier {
     notifyListeners();
 
     _subscription = stream.asBroadcastStream().listen(
-      (_) => notifyListeners(),
+          (_) => notifyListeners(),
     );
   }
 
