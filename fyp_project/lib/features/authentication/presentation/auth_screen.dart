@@ -347,7 +347,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             ),
             AppSpacing.gapLG,
 
-            // Sign In Button - Updated with login() method
+            // ✅ Updated Sign In Button with login() method
             ElevatedButton(
               onPressed: () async {
                 if (_formKey.currentState!.validate()) {
@@ -386,6 +386,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       key: const ValueKey('register'),
       padding: const EdgeInsets.all(24.0),
       child: Form(
+        key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -406,6 +407,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 labelText: 'Full Name',
                 prefixIcon: Icon(Icons.person_outline),
               ),
+              validator: (val) => val == null || val.isEmpty ? 'Name is required' : null,
             ),
             AppSpacing.gapMD,
 
@@ -416,6 +418,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 labelText: 'Email Address',
                 prefixIcon: Icon(Icons.email_outlined),
               ),
+              validator: (val) => val == null || !val.contains('@') ? 'Invalid email' : null,
             ),
             AppSpacing.gapMD,
 
@@ -427,6 +430,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 labelText: 'Password',
                 prefixIcon: Icon(Icons.lock_outline),
               ),
+              validator: (val) => val == null || val.length < 6 ? 'Password must be at least 6 characters' : null,
+            ),
+            AppSpacing.gapMD,
+
+            // Confirm Password Input
+            TextFormField(
+              controller: _confirmPasswordController,
+              obscureText: true,
+              decoration: const InputDecoration(
+                labelText: 'Confirm Password',
+                prefixIcon: Icon(Icons.lock_outline),
+              ),
+              validator: (val) => val != _passwordController.text ? 'Passwords do not match' : null,
             ),
             AppSpacing.gapMD,
 
@@ -469,13 +485,34 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             ),
             AppSpacing.gapMD,
 
-            // Register Button
+            // ✅ Updated Register Button with signup() method
             ElevatedButton(
               onPressed: _agreeToTerms
-                  ? () {
-                // Navigate to OTP Check
-                _changeMode(AuthMode.otp);
-              }
+                  ? () async {
+                      try {
+                        await ref.read(authStateProvider.notifier).signup(
+                          name: _nameController.text.trim(),
+                          email: _emailController.text.trim(),
+                          password: _passwordController.text.trim(),
+                          role: _selectedRole,
+                        );
+
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Verification email sent"),
+                            ),
+                          );
+                          _changeMode(AuthMode.login);
+                        }
+                      } catch (e) {
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(e.toString())),
+                          );
+                        }
+                      }
+                    }
                   : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryDark,
