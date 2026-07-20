@@ -1,15 +1,15 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-import '../../../core/constants/api_constants.dart';
-
 class AuthService {
+  static const String baseUrl = 'http://10.0.2.2:8000';
+
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
   }) async {
     final response = await http.post(
-      Uri.parse(ApiConstants.login),
+      Uri.parse('$baseUrl/api/auth/login'),
       headers: {
         'Content-Type': 'application/json',
       },
@@ -33,7 +33,7 @@ class AuthService {
     required String role,
   }) async {
     final response = await http.post(
-      Uri.parse(ApiConstants.signup),
+      Uri.parse('$baseUrl/api/auth/signup'),
       headers: {
         'Content-Type': 'application/json',
       },
