@@ -31,35 +31,31 @@ final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(de
 
 /// Provider that exposes the centralized GoRouter configuration.
 final routerProvider = Provider<GoRouter>((ref) {
+  // Using ref.watch to observe auth state changes
+  final auth = ref.watch(authStateProvider);
+
+  print("ROUTER PROVIDER BUILDING");
+  print("Auth isLoading: ${auth.isLoading}");
+  print("Auth isAuthenticated: ${auth.isAuthenticated}");
+  print("Auth role: ${auth.role}");
+
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
 
-    initialLocation: Routes.splash,
+    initialLocation: Routes.auth,
 
     // Temporarily using ValueNotifier(0) instead of GoRouterRefreshStream
     // since StateNotifier doesn't have a stream property
     refreshListenable: ValueNotifier(0),
 
     redirect: (context, state) {
-      final auth = ref.read(authStateProvider);
+      print("ROUTER REDIRECT");
+      print("Current location: ${state.matchedLocation}");
+      print("Auth isLoading: ${auth.isLoading}");
+      print("Auth isAuthenticated: ${auth.isAuthenticated}");
+      print("Auth role: ${auth.role}");
 
-      if (auth.isLoading) {
-        return Routes.splash;
-      }
-
-      final isAuthRoute = state.matchedLocation == Routes.auth;
-      final isSplashRoute = state.matchedLocation == Routes.splash;
-
-      if (!auth.isAuthenticated) {
-        return isAuthRoute ? null : Routes.auth;
-      }
-
-      if (isAuthRoute || isSplashRoute) {
-        return auth.role == 'owner'
-            ? Routes.ownerDashboard
-            : Routes.customerHome;
-      }
-
+      // Temporary: disable redirect for debugging
       return null;
     },
 
