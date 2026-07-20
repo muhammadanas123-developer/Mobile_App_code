@@ -347,12 +347,24 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             ),
             AppSpacing.gapLG,
 
-            // Sign In Button
+            // Sign In Button - Updated with login() method
             ElevatedButton(
-              onPressed: () {
+              onPressed: () async {
                 if (_formKey.currentState!.validate()) {
-                  // Navigate to OTP check for secure feeling
-                  _changeMode(AuthMode.otp);
+                  try {
+                    await ref.read(authStateProvider.notifier).login(
+                      email: _emailController.text.trim(),
+                      password: _passwordController.text.trim(),
+                    );
+                  } catch (e) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(e.toString()),
+                        ),
+                      );
+                    }
+                  }
                 }
               },
               style: ElevatedButton.styleFrom(
