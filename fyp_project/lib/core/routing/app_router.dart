@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'go_router_refresh_stream.dart';
 import 'routes.dart';
 import '../../features/authentication/presentation/splash_screen.dart';
 import '../../features/authentication/presentation/auth_state_provider.dart';
@@ -27,9 +26,6 @@ import '../../features/salon_owner/owner_bookings_tab.dart';
 import '../../features/salon_owner/owner_reviews_tab.dart';
 import '../../features/salon_owner/owner_revenue_screen.dart';
 import '../../features/authentication/presentation/auth_screen.dart';
-import '../../features/ai/ai_hub_tab.dart';
-import '../../features/ai/ai_scan_flow_screen.dart';
-import '../../features/ai/ai_chat_screen.dart';
 
 final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 
@@ -40,10 +36,6 @@ final routerProvider = Provider<GoRouter>((ref) {
 
     initialLocation: Routes.splash,
 
-    refreshListenable: GoRouterRefreshStream(
-      ref.watch(authStateProvider.notifier).stream,
-    ),
-
     redirect: (context, state) {
       final auth = ref.read(authStateProvider);
 
@@ -51,14 +43,14 @@ final routerProvider = Provider<GoRouter>((ref) {
         return Routes.splash;
       }
 
-      final isAuth = state.matchedLocation == Routes.auth;
-      final isSplash = state.matchedLocation == Routes.splash;
+      final isAuthRoute = state.matchedLocation == Routes.auth;
+      final isSplashRoute = state.matchedLocation == Routes.splash;
 
       if (!auth.isAuthenticated) {
-        return isAuth ? null : Routes.auth;
+        return isAuthRoute ? null : Routes.auth;
       }
 
-      if (isAuth || isSplash) {
+      if (isAuthRoute || isSplashRoute) {
         return auth.role == 'owner'
             ? Routes.ownerDashboard
             : Routes.customerHome;
