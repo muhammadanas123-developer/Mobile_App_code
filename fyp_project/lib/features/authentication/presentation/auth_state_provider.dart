@@ -79,6 +79,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
     required String password,
   }) async {
     try {
+      print("LOGIN START");
+
       state = state.copyWith(isLoading: true);
 
       final response = await _authService.login(
@@ -86,33 +88,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
         password: password,
       );
 
+      print(response);
+
       final token = response['access_token'];
-
-      final userJson = response['user'];
-
-      final user = UserModel(
-        id: userJson['id'],
-        name: userJson['user_metadata']?['name'] ?? '',
-        email: userJson['email'],
-        role: userJson['user_metadata']?['role'] ?? 'customer',
-      );
 
       await _secureStorage.saveTokens(
         accessToken: token,
         refreshToken: '',
       );
 
-      await _prefs.setUserRole(user.role);
+      print("TOKEN SAVED");
 
       state = AuthState(
         isLoading: false,
         isAuthenticated: true,
-        user: user,
-        role: user.role,
+        role: 'customer',
       );
+
+      print("STATE UPDATED");
     } catch (e) {
+      print(e);
       state = state.copyWith(isLoading: false);
-      rethrow;
     }
   }
 
