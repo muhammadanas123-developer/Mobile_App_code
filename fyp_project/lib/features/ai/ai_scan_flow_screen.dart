@@ -1,17 +1,17 @@
 import 'dart:io';
 import 'package:image_picker/image_picker.dart';
-import '../data/ai_service.dart';
+import '../data/ai_api_service.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_text_styles.dart';
-import '../../../core/constants/app_radius.dart';
-import '../../../core/constants/app_spacing.dart';
-import '../../../core/constants/app_assets.dart';
-import '../../../core/routing/routes.dart';
-import '../../../shared/service_model.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_text_styles.dart';
+import '../../core/constants/app_radius.dart';
+import '../../core/constants/app_spacing.dart';
+import '../../core/constants/app_assets.dart';
+import '../../core/routing/routes.dart';
+import '../../shared/service_model.dart';
 import 'package:fyp_project/features/booking/booking_state_provider.dart';
 
 enum ScanStep { permission, viewfinder, scanning, processing, results }
@@ -33,8 +33,6 @@ class _AIScanFlowScreenState extends ConsumerState<AIScanFlowScreen>
   ScanStep _currentStep = ScanStep.permission;
   File? selectedImage;
   Map<String, dynamic>? analysis;
-  bool _isLoadingAnalysis = false;
-  final AIService _aiService = AIService();
 
   late AnimationController _scannerController;
   late Animation<double> _laserAnimation;
@@ -87,35 +85,23 @@ class _AIScanFlowScreenState extends ConsumerState<AIScanFlowScreen>
       setState(() {
         selectedImage = File(image.path);
         _currentStep = ScanStep.processing;
-        _isLoadingAnalysis = true;
       });
 
       _startProcessingCycle();
 
-      // TODO: Supabase/Firebase/Auth token yahan lagana hai
-      const token = 'YOUR_TOKEN';
+      final aiService = ref.read(aiApiServiceProvider);
 
-      if (widget.scanType == 'skin') {
-        analysis = await _aiService.analyzeSkin(
-          File(image.path),
-          token,
-        );
-      } else if (widget.scanType == 'hair') {
-        analysis = await _aiService.analyzeHair(
-          File(image.path),
-          token,
-        );
+      if (widget.scanType == 'hair') {
+        analysis = await aiService.analyzeHair(File(image.path));
+      } else if (widget.scanType == 'face_shape' || widget.scanType == 'makeup' || widget.scanType == 'beard') {
+        analysis = await aiService.analyzeFace(File(image.path));
       } else {
-        analysis = await _aiService.analyzeFace(
-          File(image.path),
-          token,
-        );
+        analysis = await aiService.analyzeSkin(File(image.path));
       }
 
       if (!mounted) return;
 
       setState(() {
-        _isLoadingAnalysis = false;
         _processingTimer?.cancel();
         _currentStep = ScanStep.results;
       });
@@ -123,7 +109,6 @@ class _AIScanFlowScreenState extends ConsumerState<AIScanFlowScreen>
       if (!mounted) return;
 
       setState(() {
-        _isLoadingAnalysis = false;
         _processingTimer?.cancel();
       });
 
