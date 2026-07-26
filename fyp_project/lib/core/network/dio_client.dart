@@ -2,13 +2,14 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../storage/secure_storage_service.dart';
 import '../errors/exceptions.dart';
+import 'api_constants.dart';
 import 'api_interceptors.dart';
 
 /// Provider for raw Dio, useful for basic queries
 final dioProvider = Provider<Dio>((ref) {
   final dio = Dio(
     BaseOptions(
-      baseUrl: 'https://api.lumierebeauty.com/v1', // Mock Base URL (can be customized via environment config)
+      baseUrl: ApiConstants.baseUrl,
       connectTimeout: const Duration(seconds: 15),
       receiveTimeout: const Duration(seconds: 15),
       sendTimeout: const Duration(seconds: 15),
@@ -73,6 +74,46 @@ class DioClient {
     }
   }
 
+  Future<Response> put(
+      String path, {
+        dynamic data,
+        Map<String, dynamic>? queryParameters,
+        Options? options,
+        CancelToken? cancelToken,
+      }) async {
+    try {
+      return await _dio.put(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+        cancelToken: cancelToken,
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
+  Future<Response> delete(
+      String path, {
+        dynamic data,
+        Map<String, dynamic>? queryParameters,
+        Options? options,
+        CancelToken? cancelToken,
+      }) async {
+    try {
+      return await _dio.delete(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+        cancelToken: cancelToken,
+      );
+    } on DioException catch (e) {
+      throw _handleDioError(e);
+    }
+  }
+
   CustomException _handleDioError(DioException error) {
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
@@ -82,8 +123,12 @@ class DioClient {
         return const NetworkException('Connection timeout. Please check your internet.');
       case DioExceptionType.badResponse:
         final status = error.response?.statusCode;
-        final message = error.response?.data?['message'] ?? 'Server error occurred.';
-        if (status == 400) {
+        final rawData = error.response?.data;
+        String message = 'Server error occurred.';
+        if (rawData is Map) {
+          message = rawData['detail']?.toString() ?? rawData['message']?.toString() ?? message;
+        }
+        if (status == 400 || status == 422) {
           return ValidationException(message);
         } else if (status == 401 || status == 403) {
           return AuthException(message, status);
