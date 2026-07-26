@@ -2,14 +2,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_text_styles.dart';
-import '../../../core/constants/app_spacing.dart';
-import '../../../core/constants/app_radius.dart';
-import '../../../core/constants/app_assets.dart';
-import '../../../core/routing/routes.dart';
-import '../../../shared/service_model.dart';
-import 'package:fyp_project/features/booking/booking_state_provider.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_text_styles.dart';
+import '../../core/constants/app_spacing.dart';
+import '../../core/constants/app_radius.dart';
+import '../../core/constants/app_assets.dart';
+import '../../core/routing/routes.dart';
 
 // ============ ADDED: Enums and Providers ============
 enum AIScanState {
@@ -47,7 +45,6 @@ class AIHubTab extends ConsumerStatefulWidget {
 
 class _AIHubTabState extends ConsumerState<AIHubTab> with SingleTickerProviderStateMixin {
   late AnimationController _scannerAnimController;
-  late Animation<double> _scanLineAnimation;
   Timer? _scanTimer;
 
   @override
@@ -56,9 +53,6 @@ class _AIHubTabState extends ConsumerState<AIHubTab> with SingleTickerProviderSt
     _scannerAnimController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 2),
-    );
-    _scanLineAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
-      CurvedAnimation(parent: _scannerAnimController, curve: Curves.easeInOut),
     );
   }
 
@@ -138,8 +132,6 @@ class _AIHubTabState extends ConsumerState<AIHubTab> with SingleTickerProviderSt
         return _buildScanningState();
       case AIScanState.completed:
         return _buildCompletedState();
-      default:
-        return _buildLandingState(); // Default fallback
     }
   }
   // ============ END OF FIX ============
@@ -553,152 +545,6 @@ class _AIHubTabState extends ConsumerState<AIHubTab> with SingleTickerProviderSt
       ),
     );
   }
-  // ============ END OF ADDED ============
+// ============ END OF ADDED ============
 
-  Widget _buildOverlayChip(String text, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: Colors.black.withValues(alpha: 0.5),
-        borderRadius: AppRadius.borderSM,
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: AppColors.success, size: 8),
-          const SizedBox(width: 4),
-          Text(
-            text,
-            style: AppTextStyles.label(color: AppColors.surface),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMetricCard(String title, String val, String status, IconData icon, Color color, {bool isError = false}) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: AppRadius.borderLG,
-        border: Border.all(color: AppColors.border, width: 0.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Icon(icon, color: AppColors.textMedium, size: 20),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                decoration: BoxDecoration(
-                  color: isError ? AppColors.errorBg : AppColors.primaryLight,
-                  borderRadius: AppRadius.borderSM,
-                ),
-                child: Text(
-                  status,
-                  style: AppTextStyles.label(color: isError ? AppColors.errorText : AppColors.primaryDark).copyWith(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 10,
-                  ),
-                ),
-              ),
-            ],
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: AppTextStyles.bodySmall(color: AppColors.textLight),
-              ),
-              Text(
-                val,
-                style: AppTextStyles.metricSmall(),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildRecommendationTag(String label, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: AppColors.surface.withValues(alpha: 0.1),
-        borderRadius: AppRadius.borderSM,
-        border: Border.all(color: AppColors.surface.withValues(alpha: 0.2)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: AppColors.primaryAccent, size: 16),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: AppTextStyles.label(color: AppColors.surface),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildProductItem({
-    required String brandName,
-    required String productName,
-    required double price,
-    required String imageAsset,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: AppRadius.borderLG,
-        border: Border.all(color: AppColors.border, width: 0.5),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: AppRadius.borderMD,
-            child: Image.asset(imageAsset, width: 64, height: 64, fit: BoxFit.cover),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  brandName,
-                  style: AppTextStyles.label(color: AppColors.textLight),
-                ),
-                Text(
-                  productName,
-                  style: AppTextStyles.titleMedium(),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '\$${price.toStringAsFixed(2)}',
-                  style: AppTextStyles.bodyMedium(color: AppColors.textMedium).copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.add_shopping_cart, color: AppColors.primaryDark),
-            onPressed: () {},
-            style: IconButton.styleFrom(
-              backgroundColor: AppColors.cardBg,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
