@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_text_styles.dart';
-import '../../../core/constants/app_radius.dart';
-import '../../../shared/chat_message_model.dart';
-import '../data/ai_service.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_text_styles.dart';
+import '../../core/constants/app_radius.dart';
+import '../../shared/chat_message_model.dart';
+import '../data/ai_api_service.dart';
 
 final chatMessagesProvider = StateNotifierProvider<ChatMessagesNotifier, List<ChatMessageModel>>((ref) {
   return ChatMessagesNotifier();
@@ -44,7 +44,6 @@ class AIChatScreen extends ConsumerStatefulWidget {
 
 class _AIChatScreenState extends ConsumerState<AIChatScreen> {
   final TextEditingController _messageController = TextEditingController();
-  final AIService _aiService = AIService();
 
   bool _isTyping = false;
 
@@ -71,7 +70,8 @@ class _AIChatScreenState extends ConsumerState<AIChatScreen> {
     });
 
     try {
-      final reply = await _aiService.chat(text);
+      final aiService = ref.read(aiApiServiceProvider);
+      final reply = await aiService.sendChatMessage(text);
 
       if (!mounted) return;
 
@@ -220,57 +220,7 @@ class _AIChatScreenState extends ConsumerState<AIChatScreen> {
                     radius: 24,
                     child: IconButton(
                       icon: const Icon(Icons.send, color: AppColors.surface, size: 20),
-                      onPressed: () async {
-                        if (_messageController.text.trim().isEmpty) return;
-
-                        final userMessage = _messageController.text;
-
-                        _messageController.clear();
-
-                        // Add user message using provider
-                        ref.read(chatMessagesProvider.notifier).sendMessage(
-                          userMessage,
-                          'user',
-                        );
-
-                        _scrollToBottom();
-
-                        setState(() {
-                          _isTyping = true;
-                        });
-
-                        try {
-                          final reply = await _aiService.chat(userMessage);
-
-                          if (!mounted) return;
-
-                          setState(() {
-                            _isTyping = false;
-                          });
-
-                          // Add AI reply using provider
-                          ref.read(chatMessagesProvider.notifier).sendMessage(
-                            reply.isNotEmpty ? reply : 'Sorry, I could not generate a response.',
-                            'ai',
-                          );
-
-                          _scrollToBottom();
-                        } catch (e) {
-                          if (!mounted) return;
-
-                          setState(() {
-                            _isTyping = false;
-                          });
-
-                          // Add error message using provider
-                          ref.read(chatMessagesProvider.notifier).sendMessage(
-                            'Unable to connect to AI service. Please try again.',
-                            'ai',
-                          );
-
-                          _scrollToBottom();
-                        }
-                      },
+                      onPressed: () => _submitMessage(_messageController.text),
                     ),
                   ),
                 ],
