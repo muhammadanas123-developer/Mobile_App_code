@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'go_router_refresh_stream.dart';
 import 'routes.dart';
 import '../../features/authentication/presentation/splash_screen.dart';
 import '../../features/authentication/presentation/auth_state_provider.dart';
@@ -31,31 +32,35 @@ final GlobalKey<NavigatorState> _rootNavigatorKey = GlobalKey<NavigatorState>(de
 
 /// Provider that exposes the centralized GoRouter configuration.
 final routerProvider = Provider<GoRouter>((ref) {
-  // Using ref.watch to observe auth state changes
-  final auth = ref.watch(authStateProvider);
-
-  print("ROUTER PROVIDER BUILDING");
-  print("Auth isLoading: ${auth.isLoading}");
-  print("Auth isAuthenticated: ${auth.isAuthenticated}");
-  print("Auth role: ${auth.role}");
-
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
 
-    initialLocation: Routes.auth,
+    initialLocation: Routes.splash,
 
-    // Temporarily using ValueNotifier(0) instead of GoRouterRefreshStream
-    // since StateNotifier doesn't have a stream property
-    refreshListenable: ValueNotifier(0),
+    refreshListenable: GoRouterRefreshStream(
+      ref.watch(authStateProvider.notifier).stream,
+    ),
 
     redirect: (context, state) {
-      print("ROUTER REDIRECT");
-      print("Current location: ${state.matchedLocation}");
-      print("Auth isLoading: ${auth.isLoading}");
-      print("Auth isAuthenticated: ${auth.isAuthenticated}");
-      print("Auth role: ${auth.role}");
+      final auth = ref.read(authStateProvider);
 
-      // Temporary: disable redirect for debugging
+      if (auth.isLoading) {
+        return Routes.splash;
+      }
+
+      final isAuth = state.matchedLocation == Routes.auth;
+      final isSplash = state.matchedLocation == Routes.splash;
+
+      if (!auth.isAuthenticated) {
+        return isAuth ? null : Routes.auth;
+      }
+
+      if (isAuth || isSplash) {
+        return auth.role == 'owner'
+            ? Routes.ownerDashboard
+            : Routes.customerHome;
+      }
+
       return null;
     },
 
