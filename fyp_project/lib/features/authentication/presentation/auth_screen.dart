@@ -206,7 +206,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   // 2. Welcome View
   Widget _buildWelcomeView() {
-    return Padding(
+    return SingleChildScrollView(
       key: const ValueKey('welcome'),
       padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -331,23 +331,24 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               onPressed: ref.watch(authStateProvider).isLoading
                   ? null
                   : () async {
-                      if (_formKey.currentState!.validate()) {
-                        final scaffoldMessenger = ScaffoldMessenger.of(context);
-                        final success = await ref.read(authStateProvider.notifier).login(
-                              email: _emailController.text.trim(),
-                              password: _passwordController.text,
-                            );
-                        if (!success) {
-                          // If real login failed, allow user to continue in quick mode if desired
-                          scaffoldMessenger.showSnackBar(
-                            const SnackBar(
-                              content: Text('Login failed. Check server connection or use quick role login.'),
-                              duration: Duration(seconds: 3),
-                            ),
-                          );
-                        }
-                      }
-                    },
+                if (_formKey.currentState!.validate()) {
+                  final scaffoldMessenger = ScaffoldMessenger.of(context);
+                  final success = await ref.read(authStateProvider.notifier).login(
+                    email: _emailController.text.trim(),
+                    password: _passwordController.text,
+                  );
+                  if (!success) {
+                    // Show the actual error message returned from the backend
+                    final errorMsg = ref.read(authStateProvider).errorMessage ?? 'Login failed. Please try again.';
+                    scaffoldMessenger.showSnackBar(
+                      SnackBar(
+                        content: Text(errorMsg),
+                        duration: const Duration(seconds: 3),
+                      ),
+                    );
+                  }
+                }
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryDark,
                 foregroundColor: AppColors.surface,
@@ -456,19 +457,19 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             ElevatedButton(
               onPressed: (_agreeToTerms && !ref.watch(authStateProvider).isLoading)
                   ? () async {
-                      final scaffoldMessenger = ScaffoldMessenger.of(context);
-                      final success = await ref.read(authStateProvider.notifier).signup(
-                            email: _emailController.text.trim(),
-                            password: _passwordController.text,
-                            name: _nameController.text.trim().isEmpty ? 'User' : _nameController.text.trim(),
-                            role: _selectedRole,
-                          );
-                      if (!success) {
-                        scaffoldMessenger.showSnackBar(
-                          const SnackBar(content: Text('Registration submitted. Check your email or use quick login.')),
-                        );
-                      }
-                    }
+                final scaffoldMessenger = ScaffoldMessenger.of(context);
+                final success = await ref.read(authStateProvider.notifier).signup(
+                  email: _emailController.text.trim(),
+                  password: _passwordController.text,
+                  name: _nameController.text.trim().isEmpty ? 'User' : _nameController.text.trim(),
+                  role: _selectedRole,
+                );
+                if (!success) {
+                  scaffoldMessenger.showSnackBar(
+                    const SnackBar(content: Text('Registration submitted. Check your email or use quick login.')),
+                  );
+                }
+              }
                   : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryDark,
@@ -487,7 +488,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   // 5. OTP Verification View
   Widget _buildOtpView() {
-    return Padding(
+    return SingleChildScrollView(
       key: const ValueKey('otp'),
       padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -548,7 +549,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   // 6. Forgot Password
   Widget _buildForgotPasswordView() {
-    return Padding(
+    return SingleChildScrollView(
       key: const ValueKey('forgotPassword'),
       padding: const EdgeInsets.all(24.0),
       child: Column(
@@ -585,7 +586,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
   // 7. Reset Password
   Widget _buildResetPasswordView() {
-    return Padding(
+    return SingleChildScrollView(
       key: const ValueKey('resetPassword'),
       padding: const EdgeInsets.all(24.0),
       child: Column(
