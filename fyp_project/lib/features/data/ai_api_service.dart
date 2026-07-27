@@ -1,97 +1,125 @@
-import 'dart:convert';
 import 'dart:io';
+import 'package:dio/dio.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/network/api_constants.dart';
+import '../../core/network/dio_client.dart';
 
-import 'package:http/http.dart' as http;
+final aiApiServiceProvider = Provider<AIApiService>((ref) {
+  final dioClient = ref.watch(dioClientProvider);
+  return AIApiService(dioClient);
+});
 
 class AIApiService {
-  static const String baseUrl =
-      'http://YOUR_IP:8000/api/ai';
+  final DioClient _dioClient;
 
-  Future<String> sendChatMessage(String message) async {
-    final response = await http.post(
-      Uri.parse('$baseUrl/chat'),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({
-        'message': message,
-      }),
-    );
+  AIApiService(this._dioClient);
 
-    if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      return data['reply'] ?? '';
+  /// Send chat prompt to Gemini AI Chat Assistant
+  Future<String> sendChatMessage(String message, {List<Map<String, dynamic>>? history}) async {
+    try {
+      final response = await _dioClient.post(
+        ApiConstants.aiChat,
+        data: {
+          'message': message,
+          if (history != null && history.isNotEmpty) 'messages': history,
+        },
+      );
+
+      final data = response.data as Map<String, dynamic>;
+      return data['reply']?.toString() ?? 'I am your AI Beauty Assistant. How may I help you today?';
+    } catch (e) {
+      return 'I am currently operating in offline mode. How can I assist you with your beauty and treatment routine today?';
     }
-
-    throw Exception('Failed to get AI response');
   }
 
+  /// Analyze skin image via backend Gemini vision AI
   Future<Map<String, dynamic>> analyzeSkin(File image) async {
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse('$baseUrl/skin-analysis'),
-    );
+    try {
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(image.path, filename: 'skin_scan.jpg'),
+      });
 
-    request.files.add(
-      await http.MultipartFile.fromPath(
-        'file',
-        image.path,
-      ),
-    );
+      final response = await _dioClient.post(
+        ApiConstants.aiSkinAnalysis,
+        data: formData,
+      );
 
-    final streamed = await request.send();
-    final response = await http.Response.fromStream(streamed);
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      final data = response.data as Map<String, dynamic>;
+      return (data['result'] ?? data) as Map<String, dynamic>;
+    } catch (e) {
+      rethrow;
     }
-
-    throw Exception('Skin analysis failed');
   }
 
+  /// Analyze hair image via backend Gemini vision AI
   Future<Map<String, dynamic>> analyzeHair(File image) async {
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse('$baseUrl/hair-analysis'),
-    );
+    try {
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(image.path, filename: 'hair_scan.jpg'),
+      });
 
-    request.files.add(
-      await http.MultipartFile.fromPath(
-        'file',
-        image.path,
-      ),
-    );
+      final response = await _dioClient.post(
+        ApiConstants.aiHairAnalysis,
+        data: formData,
+      );
 
-    final streamed = await request.send();
-    final response = await http.Response.fromStream(streamed);
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      final data = response.data as Map<String, dynamic>;
+      return (data['result'] ?? data) as Map<String, dynamic>;
+    } catch (e) {
+      rethrow;
     }
-
-    throw Exception('Hair analysis failed');
   }
 
+  /// Analyze face shape & styling recommendations
   Future<Map<String, dynamic>> analyzeFace(File image) async {
-    var request = http.MultipartRequest(
-      'POST',
-      Uri.parse('$baseUrl/analyze-face'),
-    );
+    try {
+      final formData = FormData.fromMap({
+        'file': await MultipartFile.fromFile(image.path, filename: 'face_scan.jpg'),
+      });
 
-    request.files.add(
-      await http.MultipartFile.fromPath(
-        'file',
-        image.path,
-      ),
-    );
+      final response = await _dioClient.post(
+        ApiConstants.aiFaceAnalysis,
+        data: formData,
+      );
 
-    final streamed = await request.send();
-    final response = await http.Response.fromStream(streamed);
-
-    if (response.statusCode == 200) {
-      return jsonDecode(response.body);
+      return response.data as Map<String, dynamic>;
+    } catch (e) {
+      rethrow;
     }
+  }
 
-    throw Exception('Face analysis failed');
+  /// AI Salon recommendation
+  Future<List<dynamic>> recommendSalon({String? location, double? rating, String? preferences}) async {
+    try {
+      final response = await _dioClient.post(
+        ApiConstants.aiRecommendSalon,
+        data: {
+          if (location != null) 'location': location,
+          if (rating != null) 'rating': rating,
+          if (preferences != null) 'preferences': preferences,
+        },
+      );
+      final data = response.data as Map<String, dynamic>;
+      return data['recommendations'] as List? ?? [];
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// AI Service recommendation based on user concerns
+  Future<List<dynamic>> recommendServices({required List<String> concerns, String? gender}) async {
+    try {
+      final response = await _dioClient.post(
+        ApiConstants.aiRecommendService,
+        data: {
+          'concerns': concerns,
+          if (gender != null) 'gender': gender,
+        },
+      );
+      final data = response.data as Map<String, dynamic>;
+      return data['suggestions'] as List? ?? [];
+    } catch (e) {
+      rethrow;
+    }
   }
 }
