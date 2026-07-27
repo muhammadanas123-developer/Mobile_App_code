@@ -106,46 +106,6 @@ class ProfileTab extends ConsumerWidget {
             ),
             AppSpacing.gapLG,
 
-            // Developer Switcher Alert Box
-            Container(
-              padding: const EdgeInsets.all(16.0),
-              decoration: BoxDecoration(
-                color: (isDark ? AppColors.primaryAccent : AppColors.primaryDark).withValues(alpha: 0.08),
-                borderRadius: AppRadius.borderMD,
-                border: Border.all(
-                  color: (isDark ? AppColors.primaryAccent : AppColors.primaryDark).withValues(alpha: 0.2),
-                ),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Evaluate Experience',
-                    style: AppTextStyles.titleSmall().copyWith(
-                      color: isDark ? AppColors.primaryAccent : AppColors.primaryDark,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Switch roles to instantly experience the alternate dashboard and tabs.',
-                    style: AppTextStyles.bodySmall().copyWith(color: textSecondary),
-                  ),
-                  const SizedBox(height: 12),
-                  ElevatedButton.icon(
-                    onPressed: () => ref.read(authStateProvider.notifier).switchRole(),
-                    icon: const Icon(Icons.swap_horizontal_circle),
-                    label: Text(
-                      user?.role == 'owner' ? 'Switch to Customer View' : 'Switch to Owner View',
-                    ),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 16),
-                      textStyle: AppTextStyles.button().copyWith(fontSize: 14),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            AppSpacing.gapLG,
 
             // Options List
             Text(
