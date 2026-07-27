@@ -149,7 +149,7 @@ class SearchResultsScreen extends ConsumerWidget {
                 const SizedBox(height: 4),
                 Text(salon.name, style: AppTextStyles.titleLarge()),
                 const SizedBox(height: 6),
-                Row(children: [const Icon(Icons.location_on, size: 14, color: AppColors.textLight), const SizedBox(width: 4), Text('${salon.address} • ${salon.city}', style: AppTextStyles.bodySmall(color: AppColors.textMedium))]),
+                Row(children: [const Icon(Icons.location_on, size: 14, color: AppColors.textLight), const SizedBox(width: 4), Expanded(child: Text('${salon.address} • ${salon.city}', style: AppTextStyles.bodySmall(color: AppColors.textMedium), maxLines: 1, overflow: TextOverflow.ellipsis))]),
                 const Divider(height: 24, color: AppColors.border),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
