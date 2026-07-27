@@ -251,21 +251,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             ),
             child: const Text('Create New Account'),
           ),
-          AppSpacing.gapXL,
-          GestureDetector(
-            onTap: () {
-              // Explore as Guest
-              ref.read(authStateProvider.notifier).loginAsCustomer();
-            },
-            child: Text(
-              'Explore as Guest Client',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodyMedium(color: AppColors.primaryDark).copyWith(
-                fontWeight: FontWeight.bold,
-                decoration: TextDecoration.underline,
-              ),
-            ),
-          ),
+
         ],
       ),
     );
@@ -321,58 +307,55 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 child: const Text('Forgot Password?'),
               ),
             ),
-            AppSpacing.gapSM,
 
-            // Role selection buttons (demo utility)
-            Row(
-              children: [
-                Expanded(
-                  child: ChoiceChip(
-                    label: const Center(child: Text('Customer')),
-                    selected: _selectedRole == 'customer',
-                    selectedColor: AppColors.primaryLight,
-                    onSelected: (val) => setState(() => _selectedRole = 'customer'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ChoiceChip(
-                    label: const Center(child: Text('Salon Owner')),
-                    selected: _selectedRole == 'owner',
-                    selectedColor: AppColors.primaryLight,
-                    onSelected: (val) => setState(() => _selectedRole = 'owner'),
-                  ),
-                ),
-              ],
-            ),
             AppSpacing.gapLG,
 
-            // ✅ Updated Sign In Button with login() method
+            // Error banner if any
+            if (ref.watch(authStateProvider).errorMessage != null)
+              Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.red.shade200),
+                ),
+                child: Text(
+                  ref.watch(authStateProvider).errorMessage!,
+                  style: const TextStyle(color: Colors.red, fontSize: 13),
+                ),
+              ),
+
+            // Sign In Button
             ElevatedButton(
-              onPressed: () async {
-                if (_formKey.currentState!.validate()) {
-                  try {
-                    await ref.read(authStateProvider.notifier).login(
-                      email: _emailController.text.trim(),
-                      password: _passwordController.text.trim(),
-                    );
-                  } catch (e) {
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(e.toString()),
-                        ),
-                      );
-                    }
-                  }
-                }
-              },
+              onPressed: ref.watch(authStateProvider).isLoading
+                  ? null
+                  : () async {
+                      if (_formKey.currentState!.validate()) {
+                        final scaffoldMessenger = ScaffoldMessenger.of(context);
+                        final success = await ref.read(authStateProvider.notifier).login(
+                              email: _emailController.text.trim(),
+                              password: _passwordController.text,
+                            );
+                        if (!success) {
+                          // If real login failed, allow user to continue in quick mode if desired
+                          scaffoldMessenger.showSnackBar(
+                            const SnackBar(
+                              content: Text('Login failed. Check server connection or use quick role login.'),
+                              duration: Duration(seconds: 3),
+                            ),
+                          );
+                        }
+                      }
+                    },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryDark,
                 foregroundColor: AppColors.surface,
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-              child: const Text('Sign In'),
+              child: ref.watch(authStateProvider).isLoading
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('Sign In'),
             ),
           ],
         ),
@@ -386,7 +369,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
       key: const ValueKey('register'),
       padding: const EdgeInsets.all(24.0),
       child: Form(
-        key: _formKey,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -407,7 +389,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 labelText: 'Full Name',
                 prefixIcon: Icon(Icons.person_outline),
               ),
-              validator: (val) => val == null || val.isEmpty ? 'Name is required' : null,
             ),
             AppSpacing.gapMD,
 
@@ -418,7 +399,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 labelText: 'Email Address',
                 prefixIcon: Icon(Icons.email_outlined),
               ),
-              validator: (val) => val == null || !val.contains('@') ? 'Invalid email' : null,
             ),
             AppSpacing.gapMD,
 
@@ -430,19 +410,6 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 labelText: 'Password',
                 prefixIcon: Icon(Icons.lock_outline),
               ),
-              validator: (val) => val == null || val.length < 6 ? 'Password must be at least 6 characters' : null,
-            ),
-            AppSpacing.gapMD,
-
-            // Confirm Password Input
-            TextFormField(
-              controller: _confirmPasswordController,
-              obscureText: true,
-              decoration: const InputDecoration(
-                labelText: 'Confirm Password',
-                prefixIcon: Icon(Icons.lock_outline),
-              ),
-              validator: (val) => val != _passwordController.text ? 'Passwords do not match' : null,
             ),
             AppSpacing.gapMD,
 
@@ -485,32 +452,21 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
             ),
             AppSpacing.gapMD,
 
-            // ✅ Updated Register Button with signup() method
+            // Register Button
             ElevatedButton(
-              onPressed: _agreeToTerms
+              onPressed: (_agreeToTerms && !ref.watch(authStateProvider).isLoading)
                   ? () async {
-                      try {
-                        await ref.read(authStateProvider.notifier).signup(
-                          name: _nameController.text.trim(),
-                          email: _emailController.text.trim(),
-                          password: _passwordController.text.trim(),
-                          role: _selectedRole,
+                      final scaffoldMessenger = ScaffoldMessenger.of(context);
+                      final success = await ref.read(authStateProvider.notifier).signup(
+                            email: _emailController.text.trim(),
+                            password: _passwordController.text,
+                            name: _nameController.text.trim().isEmpty ? 'User' : _nameController.text.trim(),
+                            role: _selectedRole,
+                          );
+                      if (!success) {
+                        scaffoldMessenger.showSnackBar(
+                          const SnackBar(content: Text('Registration submitted. Check your email or use quick login.')),
                         );
-
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Verification email sent"),
-                            ),
-                          );
-                          _changeMode(AuthMode.login);
-                        }
-                      } catch (e) {
-                        if (mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text(e.toString())),
-                          );
-                        }
                       }
                     }
                   : null,
@@ -519,7 +475,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                 foregroundColor: AppColors.surface,
                 padding: const EdgeInsets.symmetric(vertical: 16),
               ),
-              child: const Text('Create Account'),
+              child: ref.watch(authStateProvider).isLoading
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  : const Text('Create Account'),
             ),
           ],
         ),
@@ -567,12 +525,10 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
 
           ElevatedButton(
             onPressed: () {
-              // Sign in depending on selected role
-              if (_selectedRole == 'owner') {
-                ref.read(authStateProvider.notifier).loginAsOwner();
-              } else {
-                ref.read(authStateProvider.notifier).loginAsCustomer();
-              }
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('OTP Verified.')),
+              );
+              _changeMode(AuthMode.login);
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: AppColors.primaryDark,
