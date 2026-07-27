@@ -1,10 +1,8 @@
-import 'dart:async';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../authentication/domain/user_model.dart';
 import '../../../core/storage/preferences_service.dart';
 import '../../../core/storage/secure_storage_service.dart';
-import '../../data/auth_service.dart';
+import '../data/auth_repository.dart';
 
 /// Class representing the state of Authentication.
 class AuthState {
@@ -12,12 +10,14 @@ class AuthState {
   final bool isAuthenticated;
   final UserModel? user;
   final String role; // 'customer' or 'owner'
+  final String? errorMessage;
 
   const AuthState({
-    this.isLoading = false, // ✅ Changed from true to false
+    this.isLoading = true,
     this.isAuthenticated = false,
     this.user,
     this.role = 'customer',
+    this.errorMessage,
   });
 
   AuthState copyWith({
@@ -25,12 +25,14 @@ class AuthState {
     bool? isAuthenticated,
     UserModel? user,
     String? role,
+    String? errorMessage,
   }) {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
       isAuthenticated: isAuthenticated ?? this.isAuthenticated,
       user: user ?? this.user,
       role: role ?? this.role,
+      errorMessage: errorMessage,
     );
   }
 }
@@ -39,71 +41,55 @@ class AuthState {
 class AuthNotifier extends StateNotifier<AuthState> {
   final PreferencesService _prefs;
   final SecureStorageService _secureStorage;
-  final AuthService _authService = AuthService(); // ✅ AuthService added
+  final AuthRepository _authRepository;
 
-  AuthNotifier(this._prefs, this._secureStorage) : super(const AuthState()) {
+  AuthNotifier(this._prefs, this._secureStorage, this._authRepository) : super(const AuthState()) {
     _initialize();
   }
 
   Future<void> _initialize() async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, errorMessage: null);
     final token = await _secureStorage.getAccessToken();
-    final role = _prefs.getUserRole();
+    final savedRole = _prefs.getUserRole();
 
-    if (token != null) {
-      // Mocked authenticated user profile loading
-      final user = UserModel(
-        id: '1',
-        name: role == 'owner' ? 'Maison de Beauté' : 'Charlotte Dubois',
-        email: role == 'owner' ? 'contact@maison.paris' : 'charlotte@lumiere.com',
-        role: role,
-        avatarUrl: role == 'owner' ? 'assets/images/avatar_sarah.png' : 'assets/images/avatar_user.png',
-        salonName: role == 'owner' ? 'Maison de Beauté' : null,
-      );
-      state = AuthState(
-        isLoading: false,
-        isAuthenticated: true,
-        user: user,
-        role: role,
-      );
+    if (token != null && token.isNotEmpty) {
+      try {
+        final user = await _authRepository.getProfile();
+        await _prefs.setUserRole(user.role);
+        state = AuthState(
+          isLoading: false,
+          isAuthenticated: true,
+          user: user,
+          role: user.role,
+        );
+      } catch (e) {
+        // Clear tokens if getting profile fails to enforce fresh login
+        await _secureStorage.clearTokens();
+        await _prefs.clearPreferences();
+        state = AuthState(
+          isLoading: false,
+          isAuthenticated: false,
+          role: savedRole,
+        );
+      }
     } else {
       state = AuthState(
         isLoading: false,
         isAuthenticated: false,
-        role: role,
+        role: savedRole,
       );
     }
   }
 
-  /// Real login with email and password
-  Future<void> login({
-    required String email,
-    required String password,
-  }) async {
+  /// Real backend Login with Email and Password
+  Future<bool> login({required String email, required String password}) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      state = state.copyWith(isLoading: true);
+      final res = await _authRepository.login(email: email, password: password);
+      final token = res['access_token'] as String;
+      final user = res['user'] as UserModel;
 
-      final response = await _authService.login(
-        email: email,
-        password: password,
-      );
-
-      final token = response['access_token'];
-
-      final userJson = response['user'];
-
-      final user = UserModel(
-        id: userJson['id'],
-        name: userJson['user_metadata']?['name'] ?? '',
-        email: userJson['email'],
-        role: userJson['user_metadata']?['role'] ?? 'customer',
-      );
-
-      await _secureStorage.saveTokens(
-        accessToken: token,
-        refreshToken: '',
-      );
-
+      await _secureStorage.saveTokens(accessToken: token, refreshToken: token);
       await _prefs.setUserRole(user.role);
 
       state = AuthState(
@@ -112,103 +98,60 @@ class AuthNotifier extends StateNotifier<AuthState> {
         user: user,
         role: user.role,
       );
+      return true;
     } catch (e) {
-      state = state.copyWith(isLoading: false);
-      rethrow;
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.toString().replaceAll('CustomException:', '').replaceAll('ValidationException:', '').trim(),
+      );
+      return false;
     }
   }
 
-  /// Signup with email, password, name and role
-  Future<void> signup({
-    required String name,
+  /// Real backend Signup
+  Future<bool> signup({
     required String email,
     required String password,
+    required String name,
     required String role,
+    String? businessName,
   }) async {
+    state = state.copyWith(isLoading: true, errorMessage: null);
     try {
-      state = state.copyWith(isLoading: true);
-
-      await _authService.signup(
-        name: name,
+      await _authRepository.signup(
         email: email,
         password: password,
+        name: name,
         role: role,
+        businessName: businessName,
       );
-
-      state = state.copyWith(isLoading: false);
+      // Attempt login right after signup
+      return await login(email: email, password: password);
     } catch (e) {
-      state = state.copyWith(isLoading: false);
-      rethrow;
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.toString().replaceAll('CustomException:', '').replaceAll('ValidationException:', '').trim(),
+      );
+      return false;
     }
   }
 
-  /// Logs in as Customer (Mock)
-  Future<void> loginAsCustomer() async {
-    state = state.copyWith(isLoading: true);
-    await _secureStorage.saveTokens(accessToken: 'mock_customer_jwt', refreshToken: 'mock_refresh_token');
-    await _prefs.setUserRole('customer');
 
-    const user = UserModel(
-      id: '1',
-      name: 'Charlotte Dubois',
-      email: 'charlotte@lumiere.com',
-      role: 'customer',
-      avatarUrl: 'assets/images/avatar_user.png',
-    );
 
-    state = const AuthState(
-      isLoading: false,
-      isAuthenticated: true,
-      user: user,
-      role: 'customer',
-    );
-  }
-
-  /// Logs in as Salon Owner (Mock)
-  Future<void> loginAsOwner() async {
-    state = state.copyWith(isLoading: true);
-    await _secureStorage.saveTokens(accessToken: 'mock_owner_jwt', refreshToken: 'mock_refresh_token');
-    await _prefs.setUserRole('owner');
-
-    const user = UserModel(
-      id: '2',
-      name: 'Sarah Jenkins',
-      email: 'contact@maison.paris',
-      role: 'owner',
-      avatarUrl: 'assets/images/avatar_sarah.png',
-      salonName: 'Maison de Beauté',
-    );
-
-    state = const AuthState(
-      isLoading: false,
-      isAuthenticated: true,
-      user: user,
-      role: 'owner',
-    );
-  }
-
-  /// Switch roles on-the-fly for demo purposes
-  Future<void> switchRole() async {
-    final nextRole = state.role == 'customer' ? 'owner' : 'customer';
-    state = state.copyWith(isLoading: true);
-    await _prefs.setUserRole(nextRole);
-
-    if (nextRole == 'owner') {
-      await loginAsOwner();
-    } else {
-      await loginAsCustomer();
-    }
-  }
-
-  void updateProfileName(String newName) {
+  Future<void> updateProfileName(String newName) async {
     if (state.user != null) {
-      state = state.copyWith(user: state.user!.copyWith(name: newName));
+      try {
+        final updatedUser = await _authRepository.updateProfile(name: newName);
+        state = state.copyWith(user: updatedUser);
+      } catch (_) {
+        state = state.copyWith(user: state.user!.copyWith(name: newName));
+      }
     }
   }
 
   /// Cleans up auth and secure storage
   Future<void> logout() async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, errorMessage: null);
     await _secureStorage.clearTokens();
     await _prefs.clearPreferences();
     state = const AuthState(
@@ -223,24 +166,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
 final authStateProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
   final prefs = ref.watch(preferencesServiceProvider);
   final secureStorage = ref.watch(secureStorageServiceProvider);
-  return AuthNotifier(prefs, secureStorage);
+  final authRepo = ref.watch(authRepositoryProvider);
+  return AuthNotifier(prefs, secureStorage, authRepo);
 });
 
-/// Helper class to refresh GoRouter when authentication state changes
-class GoRouterRefreshStream extends ChangeNotifier {
-  GoRouterRefreshStream(Stream<dynamic> stream) {
-    notifyListeners();
-
-    _subscription = stream.asBroadcastStream().listen(
-          (_) => notifyListeners(),
-    );
-  }
-
-  late final StreamSubscription _subscription;
-
-  @override
-  void dispose() {
-    _subscription.cancel();
-    super.dispose();
-  }
-}
