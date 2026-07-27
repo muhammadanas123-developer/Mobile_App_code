@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../authentication/presentation/auth_state_provider.dart';
-import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_text_styles.dart';
-import '../../../core/constants/app_spacing.dart';
-import '../../../core/constants/app_radius.dart';
-import '../../../core/constants/app_assets.dart';
-import '../../../core/routing/routes.dart';
-import '../../../shared/favorites_provider.dart';
+import '../../core/constants/app_colors.dart';
+import '../../core/constants/app_text_styles.dart';
+import '../../core/constants/app_spacing.dart';
+import '../../core/constants/app_radius.dart';
+import '../../core/constants/app_assets.dart';
+import '../../core/routing/routes.dart';
+import '../../shared/favorites_provider.dart';
+import '../../shared/salons_provider.dart';
+import '../../shared/salon_model.dart';
 import 'search_results_screen.dart';
 
 /// Refined HomeTab - Pakistan-based demo data with favorites on salon cards
@@ -124,36 +126,25 @@ class HomeTab extends ConsumerWidget {
             ),
             AppSpacing.gapLG,
 
-            // Featured
+            // Featured Salons — live from backend
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [Text('Featured Salons', style: AppTextStyles.titleLarge()),
-                TextButton(onPressed: () {}, child: Text('View All', style: AppTextStyles.bodyMedium(color: AppColors.textLight)))],
+                TextButton(onPressed: () => context.push(Routes.searchResults), child: Text('View All', style: AppTextStyles.bodyMedium(color: AppColors.textLight)))],
             ),
             AppSpacing.gapXS,
-            SizedBox(
-              height: 240,
-              child: ListView(scrollDirection: Axis.horizontal, children: [
-                _buildFeaturedSalonCard(context, ref, id: '3', name: 'Glow & Grace Studio', imageAsset: AppAssets.salonInterior, rating: '4.9', address: 'DHA Phase 6, Karachi'),
-                const SizedBox(width: 16),
-                _buildFeaturedSalonCard(context, ref, id: '1', name: 'Shahnaz Hair & Beauty', imageAsset: AppAssets.salonInterior, rating: '4.8', address: 'MM Alam Road, Lahore'),
-                const SizedBox(width: 16),
-                _buildFeaturedSalonCard(context, ref, id: '2', name: 'The Nail Lounge', imageAsset: AppAssets.salonInterior, rating: '4.7', address: 'Jinnah Super, Islamabad'),
-              ]),
-            ),
+            _buildFeaturedSalonsRow(context, ref),
             AppSpacing.gapLG,
 
-            // Near You
+            // Near You — live from backend
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [Text('Near You', style: AppTextStyles.titleLarge()),
                 Row(children: [const Icon(Icons.location_on, size: 14, color: AppColors.textMedium), const SizedBox(width: 4),
-                  Text('Lahore, Punjab', style: AppTextStyles.bodySmall(color: AppColors.textMedium).copyWith(fontWeight: FontWeight.bold))])],
+                  Text('Pakistan', style: AppTextStyles.bodySmall(color: AppColors.textMedium).copyWith(fontWeight: FontWeight.bold))])],
             ),
             AppSpacing.gapSM,
-            _buildNearYouItem(context, ref, name: 'Gulberg Hair Salon', rating: '4.7', distance: '1.2 km', tags: ['HAIR', 'COLOR'], id: '1', imageAsset: AppAssets.salonInterior),
-            AppSpacing.gapMD,
-            _buildNearYouItem(context, ref, name: 'Nail Art Studio', rating: '4.9', distance: '2.5 km', tags: ['NAILS', 'VEGAN'], id: '2', imageAsset: AppAssets.salonInterior),
+            _buildNearYouList(context, ref),
           ],
         ),
       ),
@@ -173,28 +164,46 @@ class HomeTab extends ConsumerWidget {
     );
   }
 
-  Widget _buildFeaturedSalonCard(BuildContext context, WidgetRef ref, {required String id, required String name, required String imageAsset, required String rating, required String address}) {
+  // ── DATA-DRIVEN: Featured horizontal scroll built from salonsProvider ──
+  Widget _buildFeaturedSalonsRow(BuildContext context, WidgetRef ref) {
+    final salons = ref.watch(salonsProvider);
+    final featured = salons.take(3).toList();
+    return SizedBox(
+      height: 240,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: featured.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 16),
+        itemBuilder: (ctx, i) => _buildFeaturedSalonCard(ctx, ref, salon: featured[i]),
+      ),
+    );
+  }
+
+  Widget _buildFeaturedSalonCard(BuildContext context, WidgetRef ref, {required SalonModel salon}) {
     final cs = Theme.of(context).colorScheme;
     final favs = ref.watch(favoritesProvider);
-    final isFav = favs.contains(id);
+    final isFav = favs.contains(salon.id);
 
     return GestureDetector(
-      onTap: () => context.push('${Routes.salonDetail}/$id'),
+      onTap: () => context.push('${Routes.salonDetail}/${salon.id}'),
       child: Container(
         width: 260,
         decoration: BoxDecoration(color: cs.surface, borderRadius: AppRadius.borderLG, border: Border.all(color: AppColors.border, width: 0.5)),
         child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Stack(children: [
-            ClipRRect(borderRadius: const BorderRadius.vertical(top: Radius.circular(16)), child: Image.asset(imageAsset, height: 120, width: double.infinity, fit: BoxFit.cover)),
+            ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
+              child: Image.asset(salon.imageUrl.startsWith('assets') ? salon.imageUrl : AppAssets.salonInterior, height: 120, width: double.infinity, fit: BoxFit.cover),
+            ),
             Positioned(top: 10, left: 10, child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.9), borderRadius: AppRadius.borderSM),
-              child: Row(children: [const Icon(Icons.star, color: AppColors.starYellow, size: 12), const SizedBox(width: 4), Text(rating, style: AppTextStyles.label(color: AppColors.textDark).copyWith(fontWeight: FontWeight.bold, fontSize: 10))]),
+              child: Row(children: [const Icon(Icons.star, color: AppColors.starYellow, size: 12), const SizedBox(width: 4), Text(salon.rating.toStringAsFixed(1), style: AppTextStyles.label(color: AppColors.textDark).copyWith(fontWeight: FontWeight.bold, fontSize: 10))]),
             )),
             Positioned(
               top: 8, right: 8,
               child: GestureDetector(
-                onTap: () => ref.read(favoritesProvider.notifier).toggle(id),
+                onTap: () => ref.read(favoritesProvider.notifier).toggle(salon.id),
                 child: CircleAvatar(
                   radius: 16,
                   backgroundColor: Colors.white.withValues(alpha: 0.9),
@@ -208,34 +217,52 @@ class HomeTab extends ConsumerWidget {
             ),
           ]),
           Padding(padding: const EdgeInsets.all(12.0), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(name, style: AppTextStyles.titleMedium()),
-            const SizedBox(height: 4), Text(address, style: AppTextStyles.bodySmall(color: AppColors.textLight)),
+            Text(salon.name, style: AppTextStyles.titleMedium()),
+            const SizedBox(height: 4), Text(salon.address, style: AppTextStyles.bodySmall(color: AppColors.textLight)),
           ])),
         ]),
       ),
     );
   }
 
-  Widget _buildNearYouItem(BuildContext context, WidgetRef ref, {required String name, required String rating, required String distance, required List<String> tags, required String id, required String imageAsset}) {
+  // ── DATA-DRIVEN: Near You list built from salonsProvider ──
+  Widget _buildNearYouList(BuildContext context, WidgetRef ref) {
+    final salons = ref.watch(salonsProvider);
+    if (salons.isEmpty) return const SizedBox.shrink();
+    return Column(
+      children: salons.skip(salons.length > 1 ? 1 : 0).take(2).map((s) =>
+        Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: _buildNearYouItem(context, ref, salon: s),
+        ),
+      ).toList(),
+    );
+  }
+
+  Widget _buildNearYouItem(BuildContext context, WidgetRef ref, {required SalonModel salon}) {
     final cs = Theme.of(context).colorScheme;
     final favs = ref.watch(favoritesProvider);
-    final isFav = favs.contains(id);
+    final isFav = favs.contains(salon.id);
+    final tags = salon.category.split(' ').take(2).map((t) => t.toUpperCase().replaceAll(',', '')).toList();
 
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(color: cs.surface, borderRadius: AppRadius.borderLG, border: Border.all(color: AppColors.border, width: 0.5)),
       child: Row(children: [
-        ClipRRect(borderRadius: AppRadius.borderMD, child: Image.asset(imageAsset, width: 80, height: 80, fit: BoxFit.cover)),
+        ClipRRect(
+          borderRadius: AppRadius.borderMD,
+          child: Image.asset(salon.imageUrl.startsWith('assets') ? salon.imageUrl : AppAssets.salonInterior, width: 80, height: 80, fit: BoxFit.cover),
+        ),
         const SizedBox(width: 16),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(name, style: AppTextStyles.titleMedium()),
+          Text(salon.name, style: AppTextStyles.titleMedium()),
           const SizedBox(height: 4),
-          Row(children: [const Icon(Icons.star, color: AppColors.starYellow, size: 12), const SizedBox(width: 4), Text('$rating  •  $distance', style: AppTextStyles.bodySmall(color: AppColors.textMedium))]),
+          Row(children: [const Icon(Icons.star, color: AppColors.starYellow, size: 12), const SizedBox(width: 4), Text('${salon.rating}  •  ${salon.city}', style: AppTextStyles.bodySmall(color: AppColors.textMedium))]),
           const SizedBox(height: 8),
           Row(children: tags.map((t) => Container(margin: const EdgeInsets.only(right: 8), padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3), decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: AppRadius.borderSM), child: Text(t, style: AppTextStyles.label(color: AppColors.primaryDark).copyWith(fontSize: 9, fontWeight: FontWeight.bold)))).toList()),
         ])),
         GestureDetector(
-          onTap: () => ref.read(favoritesProvider.notifier).toggle(id),
+          onTap: () => ref.read(favoritesProvider.notifier).toggle(salon.id),
           child: Padding(
             padding: const EdgeInsets.only(right: 4.0),
             child: Icon(
@@ -246,7 +273,7 @@ class HomeTab extends ConsumerWidget {
           ),
         ),
         GestureDetector(
-          onTap: () => context.push('${Routes.salonDetail}/$id'),
+          onTap: () => context.push('${Routes.salonDetail}/${salon.id}'),
           child: Container(padding: const EdgeInsets.all(8), decoration: const BoxDecoration(color: AppColors.primaryDark, shape: BoxShape.circle), child: const Icon(Icons.arrow_forward, color: Colors.white, size: 18)),
         ),
       ]),
